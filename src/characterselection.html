@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Character Selection - Wombat Adventures</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .container-row {
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            gap: 40px;
+            margin-top: 40px;
+        }
+        .char-container {
+            width: 350px;
+            height: 500px;
+            background: rgba(71, 70, 70, 0.85);
+            border-radius: 12px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.12);
+            padding: 24px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+        .char-container h2 {
+            text-align: center;
+            margin-top: 0;
+        }
+        .char-card {
+            width: 240px;
+            height: 360px;
+            background: #312f2f;
+            border-radius: 10px;
+            box-shadow: 0 1px 6px rgba(0,0,0,0.10);
+            margin: 0 18px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+            color: #ffffff;
+        }
+        #startchar {
+            margin-top: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+        }
+        .char-cycle-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: none;
+            background: #024b0c;
+            color: #fff;
+            font-size: 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .char-cycle-btn:hover {
+            background: #7a5c2a;
+        }
+        /* Popup styles */
+        .popup {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .popup-content {
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            text-align: center;
+        }
+        .popup h2 {
+            margin-top: 0;
+            font-size: 1.5rem;
+        }
+        .popup input {
+            padding: 10px;
+            font-size: 1rem;
+            width: 100%;
+            margin-bottom: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        .popup-buttons {
+            display: flex;
+            justify-content: space-between;
+        }
+        .popup button {
+            padding: 10px 20px;
+            font-size: 1rem;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .popup button:hover {
+            background: #f0f0f0;
+        }
+    </style>
+</head>
+<body>
+    <button id="logoutBtn" style="position:fixed;top:24px;right:36px;z-index:2000;padding:10px 24px;font-size:1rem;border:none;border-radius:5px;background:#b22222;color:#fff;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.10);">Logout</button>
+    <h1>Select Your Character</h1>
+    <div class="container-row">
+        <div class="char-container" id="select-character">
+            <h2>Character Selection</h2>
+            <div id="startchar" style="margin-top:20px; display: flex; align-items: center; justify-content: center;">
+                <button id="char-prev" class="char-cycle-btn" aria-label="Previous character">&#8592;</button>
+                <div id="char-card" class="char-card">
+                    <!-- Character card content will go here -->
+                </div>
+                <button id="char-next" class="char-cycle-btn" aria-label="Next character">&#8594;</button>
+            </div>
+            <!-- Character selection options go here -->
+        </div>
+        <div class="char-container" id="saved-characters">
+            <h2>Saved Characters</h2>
+            <!-- Saved characters will be listed here -->
+        </div>
+    </div>
+
+    <!-- Popup for entering character name -->
+    <div class="popup" id="charNamePopup">
+        <div class="popup-content">
+            <h2>Name Your Character</h2>
+            <input type="text" id="charNameInput" placeholder="Enter character name" style="width:90%;margin-bottom:10px;">
+            <div class="popup-buttons">
+                <button id="charNameCancel" type="button">Cancel</button>
+                <button id="charNameOk" type="button">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add popup for delete confirmation only once -->
+    <div class="popup" id="deleteCharPopup">
+        <div class="popup-content">
+            <h2>Confirm Deletion</h2>
+            <div id="deleteCharMsg" style="margin-bottom:10px;"></div>
+            <input type="text" id="deleteCharInput" placeholder="Type character name to confirm" style="width:90%;margin-bottom:10px;">
+            <div class="popup-buttons">
+                <button id="deleteCharCancel" type="button">Cancel</button>
+                <button id="deleteCharOk" type="button">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="characterdata.js"></script>
+    <script>
+        // Utility: get current username from localStorage (set by login.html)
+        function getCurrentUsername() {
+            return localStorage.getItem('currentUser');
+        }
+        // Utility: get per-user character key
+        function getUserCharacterKey(username) {
+            return 'savedCharacters_' + username;
+        }
+        // Load characters for current user
+        function loadUserCharacters() {
+            const username = getCurrentUsername();
+            if (!username) return [];
+            return JSON.parse(localStorage.getItem(getUserCharacterKey(username)) || '[]');
+        }
+        // Save characters for current user
+        function saveUserCharacters(chars) {
+            const username = getCurrentUsername();
+            if (!username) return;
+            localStorage.setItem(getUserCharacterKey(username), JSON.stringify(chars));
+        }
+        // Load maxCharacterSlots from localStorage
+        function getMaxCharacterSlots() {
+            return parseInt(localStorage.getItem('maxCharacterSlots') || '3', 10);
+        }
+        // Load maxCharacterSlots for the logged-in player
+        function getMaxCharacterSlotsForPlayer() {
+            const username = getCurrentUsername();
+            if (!username) return 3; // Default to 3 if no user is logged in
+            return parseInt(localStorage.getItem(`maxCharacterSlots_${username}`) || '3', 10);
+        }
+
+        let currentChar = 0;
+        const charCard = document.getElementById('char-card');
+        const charPrev = document.getElementById('char-prev');
+        const charNext = document.getElementById('char-next');
+        const charNamePopup = document.getElementById('charNamePopup');
+        const charNameInput = document.getElementById('charNameInput');
+        const charNameOk = document.getElementById('charNameOk');
+        const charNameCancel = document.getElementById('charNameCancel');
+
+        function renderCharacter() {
+            const char = characters[currentChar];
+            charCard.innerHTML = `
+                <img src="${char.img}" alt="${char.characterclass}" style="width:160px;height:200px;border-radius:8px;margin-bottom:10px;object-fit:cover;box-shadow:0 1px 6px rgba(0,0,0,0.10);">
+                <div style="font-weight:bold;">${char.characterclass}</div>
+                <div style="font-size:0.95rem;margin-top:6px;">${char.description || ''}</div>
+                <div style="font-size:0.9rem;margin-top:8px;">
+                    <strong>Health:</strong> ${char.health || '-'}<br>
+                    <strong>Attack:</strong> ${char.attack || '-'}<br>
+                    <strong>Defense:</strong> ${char.defense || '-'}
+                </div>
+            `;
+        }
+        charPrev.onclick = function() {
+            currentChar = (currentChar - 1 + characters.length) % characters.length;
+            renderCharacter();
+        };
+        charNext.onclick = function() {
+            currentChar = (currentChar + 1) % characters.length;
+            renderCharacter();
+        };
+        // Character card click: open popup
+        charCard.onclick = function() {
+            charNameInput.value = '';
+            charNamePopup.style.display = 'flex';
+            charNameInput.focus();
+        };
+        charNameCancel.onclick = function() {
+            charNamePopup.style.display = 'none';
+        };
+        // Enable/disable OK button based on input
+        charNameInput.addEventListener('input', function() {
+            charNameOk.disabled = !charNameInput.value.trim();
+        });
+        // Initially disable OK button
+        charNameOk.disabled = true;
+
+        // Save character to localStorage on OK
+        charNameOk.onclick = function() {
+            const name = charNameInput.value.trim();
+            if (!name) return;
+            let saved = loadUserCharacters();
+            const maxChars = getMaxCharacterSlotsForPlayer();
+            if (saved.length >= maxChars) {
+                alert(`You can only save up to ${maxChars} characters.`);
+                return;
+            }
+            // Copy all properties from selected character, ensure all required fields are present
+            const baseChar = characters[currentChar];
+            const newChar = {
+                characterclass: baseChar.characterclass || '',
+                img: baseChar.img || '',
+                description: baseChar.description || '',
+                health: baseChar.health || 0,
+                attack: baseChar.attack || 0,
+                elementalattack: baseChar.elementalattack || 0,
+                defense: baseChar.defense || 0,
+                xp: 0,
+                gold: 0,
+                level: 1,
+                statpoints: baseChar.statpoints || 0,
+                skillpoints: baseChar.skillpoints || 0,
+                name: name,
+                inventory: (baseChar.starterItems ? [...baseChar.starterItems] : []), // inventory starts with starter items
+                equipped: {}, // always start with empty equipment
+            };
+            saved.push(newChar);
+            saveUserCharacters(saved);
+            charNamePopup.style.display = 'none';
+            // Optionally, refresh saved characters UI here
+            // location.reload(); // quick way to update UI
+            // Redirect to game.html with the new character index
+            window.location.href = 'game.html?char=' + (saved.length - 1);
+        };
+        // Update renderSavedCharacters to use dynamic maxCharacterSlots
+        function renderSavedCharacters() {
+            const savedContainer = document.getElementById('saved-characters');
+            savedContainer.innerHTML = '<h2>Saved Characters</h2>';
+            let saved = loadUserCharacters();
+            const maxChars = getMaxCharacterSlotsForPlayer();
+            if (saved.length === 0) {
+                const emptyMsg = document.createElement('div');
+                emptyMsg.style.textAlign = 'center';
+                emptyMsg.style.marginTop = '30px';
+                emptyMsg.textContent = 'No saved characters yet.';
+                savedContainer.appendChild(emptyMsg);
+                return;
+            }
+            // Show count below the header and above the cards
+            const countMsg = document.createElement('div');
+            countMsg.style.textAlign = 'center';
+            countMsg.style.margin = '0px 0 18px 0';
+            countMsg.style.fontSize = '1.08rem';
+            countMsg.style.color = '#e0e0e0';
+            countMsg.textContent = `Saved characters: ${saved.length} / ${maxChars}`;
+            savedContainer.appendChild(countMsg);
+            saved.forEach((char, idx) => {
+                const cardRow = document.createElement('div');
+                cardRow.style.display = 'flex';
+                cardRow.style.alignItems = 'center';
+                cardRow.style.margin = '18px auto 0 auto';
+                cardRow.style.width = '100%';
+
+                // Card visual: horizontal layout with two containers
+                const card = document.createElement('div');
+                card.className = 'char-card';
+                card.style.margin = '0';
+                card.style.width = '260px';
+                card.style.height = '80px';
+                card.style.display = 'flex'; // horizontal layout
+                card.style.flexDirection = 'row'; // ensure horizontal
+                card.style.alignItems = 'center';
+                card.style.justifyContent = 'flex-start';
+                card.style.background = '#312f2f';
+                card.style.boxShadow = '0 1px 6px rgba(0,0,0,0.10)';
+                card.style.padding = '10px 12px';
+                card.style.borderRadius = '10px';
+                card.style.border = '2px solid #4a4a4a'; // Add outline
+                card.style.cursor = 'pointer';
+
+                // Card click: go to game.html with selected character index
+                card.onclick = function(e) {
+                    // Prevent click if delete button is pressed
+                    if (e.target.tagName.toLowerCase() === 'button') return;
+                    window.location.href = `game.html?char=${idx}`;
+                };
+
+                // Left container: character image (circle)
+                const left = document.createElement('div');
+                left.style.display = 'flex';
+                left.style.flexDirection = 'row';
+                left.style.alignItems = 'center';
+                left.style.justifyContent = 'center';
+                left.style.width = '64px';
+                left.style.height = '64px';
+                left.style.minWidth = '64px';
+                left.style.maxWidth = '64px';
+                left.style.minHeight = '64px';
+                left.style.maxHeight = '64px';
+                const img = document.createElement('img');
+                img.src = char.img;
+                img.alt = char.characterclass;
+                img.style.width = '64px';
+                img.style.height = '64px';
+                img.style.borderRadius = '50%';
+                img.style.objectFit = 'cover';
+                img.style.boxShadow = '0 1px 6px rgba(0,0,0,0.10)';
+                left.appendChild(img);
+
+                // Right container: properties
+                const right = document.createElement('div');
+                right.style.display = 'flex';
+                right.style.flexDirection = 'column';
+                right.style.justifyContent = 'center';
+                right.style.alignItems = 'flex-start';
+                right.style.marginLeft = '16px';
+                right.style.padding = '4px 8px';
+                right.style.width = '150px';
+                right.style.minWidth = '150px';
+                right.style.maxWidth = '150px';
+                right.style.height = '56px';
+                right.style.minHeight = '56px';
+                right.style.maxHeight = '56px';
+                right.innerHTML = `
+                    <div style="font-weight:bold;font-size:1.1rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;">${char.name}</div>
+                    <div style="font-size:0.95rem;margin-top:2px;">Level ${char.level}</div>
+                    <div style="font-size:0.95rem;">${char.characterclass}</div>
+                `;
+
+                card.appendChild(left);
+                card.appendChild(right);
+
+                // Delete button
+                const delBtn = document.createElement('button');
+                delBtn.textContent = '🗑️';
+                delBtn.style.marginLeft = '18px';
+                delBtn.style.padding = '8px 16px';
+                delBtn.style.fontSize = '1.2rem';
+                delBtn.style.border = 'none';
+                delBtn.style.borderRadius = '4px';
+                delBtn.style.background = '#b22222';
+                delBtn.style.color = '#fff';
+                delBtn.style.cursor = 'pointer';
+                delBtn.onmouseenter = () => delBtn.style.background = '#d32f2f';
+                delBtn.onmouseleave = () => delBtn.style.background = '#b22222';
+                delBtn.onclick = function(e) {
+                    e.stopPropagation(); // Prevent bubbling
+                    // Show popup for confirmation
+                    const deletePopup = document.getElementById('deleteCharPopup');
+                    const deleteMsg = document.getElementById('deleteCharMsg');
+                    const deleteInput = document.getElementById('deleteCharInput');
+                    const deleteOk = document.getElementById('deleteCharOk');
+                    const deleteCancel = document.getElementById('deleteCharCancel');
+                    deleteMsg.textContent = `Type the name of the character ('${char.name}') to confirm deletion.`;
+                    deleteInput.value = '';
+                    deleteOk.disabled = true;
+                    deletePopup.style.display = 'flex';
+                    deleteInput.focus();
+                    // Enable OK only if name matches
+                    deleteInput.oninput = function() {
+                        deleteOk.disabled = (deleteInput.value.trim() !== char.name);
+                    };
+                    deleteCancel.onclick = function() {
+                        deletePopup.style.display = 'none';
+                    };
+                    deleteOk.onclick = function() {
+                        saved.splice(idx, 1);
+                        saveUserCharacters(saved);
+                        deletePopup.style.display = 'none';
+                        renderSavedCharacters();
+                    };
+                };
+
+                cardRow.appendChild(card);
+                cardRow.appendChild(delBtn);
+                savedContainer.appendChild(cardRow);
+            });
+        }
+
+        // Update character saving logic to use dynamic maxCharacterSlots
+        charNameOk.onclick = function() {
+            const name = charNameInput.value.trim();
+            if (!name) return;
+            let saved = loadUserCharacters();
+            const maxChars = getMaxCharacterSlotsForPlayer();
+            if (saved.length >= maxChars) {
+                alert(`You can only save up to ${maxChars} characters.`);
+                return;
+            }
+            const baseChar = characters[currentChar];
+            const newChar = {
+                characterclass: baseChar.characterclass || '',
+                img: baseChar.img || '',
+                description: baseChar.description || '',
+                health: baseChar.health || 0,
+                attack: baseChar.attack || 0,
+                elementalattack: baseChar.elementalattack || 0,
+                defense: baseChar.defense || 0,
+                xp: 0,
+                gold: 0,
+                level: 1,
+                statpoints: baseChar.statpoints || 0,
+                skillpoints: baseChar.skillpoints || 0,
+                name: name,
+                inventory: (baseChar.starterItems ? [...baseChar.starterItems] : []),
+                equipped: {},
+            };
+            saved.push(newChar);
+            saveUserCharacters(saved);
+            charNamePopup.style.display = 'none';
+            window.location.href = 'game.html?char=' + (saved.length - 1);
+        };
+
+        // Initial render
+        renderCharacter();
+        renderSavedCharacters();
+
+        // Logout button handler
+        const logoutBtn = document.getElementById('logoutBtn');
+        if (logoutBtn) {
+            logoutBtn.onclick = function() {
+                window.location.href = 'index.html';
+            };
+        }
+    </script>
+</body>
+</html>

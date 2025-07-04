@@ -1,0 +1,46 @@
+/* styles.css */
+body {
+    font-family: Arial, sans-serif;
+    background: url('../assets/background.jpg') no-repeat center center fixed;
+    background-size: cover;
+    margin: 0;
+    padding: 0;
+    text-align: center;
+}
+nav.main-menu {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 60px;
+    background: rgba(88, 87, 87, 0.8);
+    position: relative;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    margin-bottom: 30px;
+}
+.menu-title {
+    flex: 1;
+    text-align: center;
+    font-size: 2rem;
+    font-weight: bold;
+    color: #f5f4f1;
+}
+.play-now {
+    position: absolute;
+    right: 30px;
+    top: 50%;
+    transform: translateY(-50%);
+    padding: 10px 24px;
+    font-size: 1rem;
+    background: #024b0c;
+    color: #fff;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+.play-now:hover {
+    background: #7a5c2a;
+}
+h1 {
+    color: #4a3c1a;
+}

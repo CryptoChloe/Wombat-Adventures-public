@@ -1,0 +1,17 @@
+/* gamestyles.css */
+body {
+    font-family: Arial, sans-serif;
+    background: #222;
+    margin: 0;
+    padding: 0;
+    text-align: center;
+}
+h1 {
+    color: #ffcc00;
+}
+#gameCanvas {
+    background: #000;
+    border: 2px solid #ffcc00;
+    display: block;
+    margin: 20px auto;
+}
