@@ -211,7 +211,7 @@
         if (quitBtn) {
             quitBtn.onclick = function() {
                 setMaxCharacterSlotsForPlayer(maxCharacterSlots); // Save max character slots for the current player before logging out
-                window.location.href = 'characterselection.html';
+                window.location.href = 'characterselection.html'; // Use relative path for compatibility
             };
         }
         const walletBtn = document.getElementById('connectWalletBtn');
