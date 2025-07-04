@@ -205,13 +205,28 @@
             const key = getUserCharacterKey();
             localStorage.setItem(key, JSON.stringify(chars));
         }
+        // Set maxCharacterSlots for the logged-in player
+        function setMaxCharacterSlotsForPlayer(value) {
+            const username = getCurrentUsername();
+            if (!username) return;
+            localStorage.setItem(`maxCharacterSlots_${username}`, value);
+        }
+
+        // Load maxCharacterSlots for the logged-in player
+        function getMaxCharacterSlotsForPlayer() {
+            const username = getCurrentUsername();
+            if (!username) return 3; // Default to 3 if no user is logged in
+            return parseInt(localStorage.getItem(`maxCharacterSlots_${username}`) || '3', 10);
+        }
+        // Initialize maxCharacterSlots for use throughout the game
+        let maxCharacterSlots = getMaxCharacterSlotsForPlayer();
 
         // Optional: Add button handlers
         const quitBtn = document.getElementById('quitGameBtn');
         if (quitBtn) {
             quitBtn.onclick = function() {
                 setMaxCharacterSlotsForPlayer(maxCharacterSlots); // Save max character slots for the current player before logging out
-                window.location.href = 'characterselection.html'; // Use relative path for compatibility
+                window.location.href = 'characterselection.html';
             };
         }
         const walletBtn = document.getElementById('connectWalletBtn');
@@ -1328,6 +1343,127 @@
                 if (skillpointsGained > 0) msg += `, +${skillpointsGained} skill point${skillpointsGained > 1 ? 's' : ''}`;
                 alert(msg);
             }
+        }
+        // --- Buy Extra Character Slot (PLAI Shop) logic ---
+        document.addEventListener('DOMContentLoaded', function() {
+            const buySlotBtn = document.getElementById('buyCharacterSlotBtn');
+            if (buySlotBtn) {
+                buySlotBtn.addEventListener('click', async function() {
+                    if (!window.ethereum || !window.ethers) {
+                        alert('MetaMask and ethers.js are required to buy character slots.');
+                        return;
+                    }
+                    // Check wallet connection
+                    let account = currentAccount;
+                    if (!account) {
+                        try {
+                            const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+                            account = accounts[0];
+                            currentAccount = account;
+                        } catch (err) {
+                            alert('Wallet connection failed: ' + err.message);
+                            return;
+                        }
+                    }
+                    // Fetch PLAI balance
+                    const provider = new ethers.providers.Web3Provider(window.ethereum);
+                    const plaiAddress = "0x977EA2DDa60C1FdFfd4b0377b036D3871f2d01a9";
+                    const abi = [
+                        "function balanceOf(address) view returns (uint256)",
+                        "function decimals() view returns (uint8)",
+                        "function transfer(address to, uint256 amount) returns (bool)"
+                    ];
+                    const contract = new ethers.Contract(plaiAddress, abi, provider);
+                    let balance = 0;
+                    try {
+                        const raw = await contract.balanceOf(account);
+                        balance = parseFloat(ethers.utils.formatUnits(raw, 6)); // PLAI uses 6 decimals
+                    } catch (err) {
+                        alert('Failed to fetch PLAI balance: ' + err.message);
+                        return;
+                    }
+                    if (balance < 5) {
+                        alert('You need at least 5 PLAI to buy an extra character slot.');
+                        return;
+                    }
+                    // Deduct 5 PLAI by sending to the burn address (or game treasury)
+                    const signer = provider.getSigner();
+                    const contractWithSigner = contract.connect(signer);
+                    const burnAddress = "0x78C77CB969008CE4535D8B5968C7EDf8d811dCa0"; // Replace with your treasury if needed
+                    try {
+                        buySlotBtn.disabled = true;
+                        buySlotBtn.textContent = 'Processing...';
+                        const tx = await contractWithSigner.transfer(burnAddress, ethers.utils.parseUnits('5', 6));
+                        await tx.wait();
+                    } catch (err) {
+                        alert('Transaction failed: ' + (err.data?.message || err.message));
+                        buySlotBtn.disabled = false;
+                        buySlotBtn.textContent = 'Buy Extra Character Slot (5 PLAI)';
+                        return;
+                    }
+                    // Increase maxCharacterSlots for the user
+                    maxCharacterSlots = getMaxCharacterSlotsForPlayer() + 1;
+                    setMaxCharacterSlotsForPlayer(maxCharacterSlots);
+                    // Show popup notification for new slot count
+                    showPopupNotification('You have purchased an extra character slot!<br>You now have <b>' + maxCharacterSlots + '</b> slots.');
+                    // Update PLAI balance in the top menu after purchase
+                    if (typeof fetchPLAIBalance === 'function' && currentAccount) {
+                        fetchPLAIBalance(currentAccount);
+                    }
+                    buySlotBtn.disabled = false;
+                    buySlotBtn.textContent = 'Buy Extra Character Slot (5 PLAI)';
+                });
+            }
+            // Add close button and Escape key logic for PLAI shop
+            const plaiShopPopup = document.getElementById('plaiShopPopup');
+            const closePlaiShopBtn = document.getElementById('closePlaiShopBtn');
+            if (closePlaiShopBtn && plaiShopPopup) {
+                closePlaiShopBtn.addEventListener('click', function() {
+                    plaiShopPopup.style.display = 'none';
+                });
+            }
+            document.addEventListener('keydown', function(e) {
+                if (plaiShopPopup && plaiShopPopup.style.display !== 'none' && (e.key === 'Escape' || e.key === 'Esc')) {
+                    plaiShopPopup.style.display = 'none';
+                }
+            });
+        });
+
+        function showPopupNotification(message) {
+            let popup = document.getElementById('popupNotification');
+            if (!popup) {
+                popup = document.createElement('div');
+                popup.id = 'popupNotification';
+                popup.style.position = 'fixed';
+                popup.style.top = '50%';
+                popup.style.left = '50%';
+                popup.style.transform = 'translate(-50%, -50%)';
+                popup.style.background = 'rgba(34,34,34,0.97)';
+                popup.style.color = '#fff';
+                popup.style.padding = '2rem 2.5rem';
+                popup.style.borderRadius = '18px';
+                popup.style.boxShadow = '0 8px 32px rgba(0,0,0,0.22)';
+                popup.style.zIndex = 4000;
+                popup.style.fontSize = '1.3rem';
+                popup.style.textAlign = 'center';
+                popup.style.display = 'none';
+                document.body.appendChild(popup);
+            }
+            popup.innerHTML = message + '<br><br><button id="closePopupNotification" style="margin-top:1.2rem;padding:0.5rem 1.5rem;font-size:1rem;border-radius:8px;border:none;background:#ffd700;color:#222;cursor:pointer;">OK</button>';
+            popup.style.display = 'block';
+            const closeBtn = document.getElementById('closePopupNotification');
+            if (closeBtn) {
+                closeBtn.onclick = function() {
+                    popup.style.display = 'none';
+                };
+            }
+            // Also close on Escape
+            document.addEventListener('keydown', function escListener(e) {
+                if (popup.style.display !== 'none' && (e.key === 'Escape' || e.key === 'Esc')) {
+                    popup.style.display = 'none';
+                    document.removeEventListener('keydown', escListener);
+                }
+            });
         }
     </script>
 </body>

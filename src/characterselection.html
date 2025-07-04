@@ -193,6 +193,17 @@
             if (!username) return 3; // Default to 3 if no user is logged in
             return parseInt(localStorage.getItem(`maxCharacterSlots_${username}`) || '3', 10);
         }
+        // Set maxCharacterSlots for the logged-in player
+        function setMaxCharacterSlotsForPlayer(value) {
+            const username = getCurrentUsername();
+            if (!username) return;
+            localStorage.setItem(`maxCharacterSlots_${username}`, value);
+        }
+        // If a global maxCharacterSlots exists, set it for the logged-in user
+        const globalMax = localStorage.getItem('maxCharacterSlots');
+        if (globalMax !== null) {
+            setMaxCharacterSlotsForPlayer(parseInt(globalMax, 10));
+        }
 
         let currentChar = 0;
         const charCard = document.getElementById('char-card');
@@ -335,12 +346,6 @@
                 left.style.display = 'flex';
                 left.style.flexDirection = 'row';
                 left.style.alignItems = 'center';
-                left.style.justifyContent = 'center';
-                left.style.width = '64px';
-                left.style.height = '64px';
-                left.style.minWidth = '64px';
-                left.style.maxWidth = '64px';
-                left.style.minHeight = '64px';
                 left.style.maxHeight = '64px';
                 const img = document.createElement('img');
                 img.src = char.img;
