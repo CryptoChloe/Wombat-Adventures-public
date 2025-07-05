@@ -9,7 +9,7 @@ const items = [
     type: "weapon",
     rarity: "common",
     properties: { attack: 5 },
-    icon: "../assets/sprites/sword.png",
+    icon: "../assets/sprites/sword.PNG",
     description: "A basic iron sword."
   },
   {
