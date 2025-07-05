@@ -673,10 +673,11 @@
                     break;
             }
 
-            console.log('Loading items for category:', category, itemsToLoad);
-
-            for (let i = 0; i < 25; i++) {
-                const item = itemsToLoad[i % itemsToLoad.length];
+            // Only use each item once per restock
+            const uniqueItems = Array.isArray(itemsToLoad) ? [...itemsToLoad] : [];
+            const maxSlots = 25;
+            for (let i = 0; i < maxSlots; i++) {
+                const item = uniqueItems[i];
                 const slot = document.createElement('div');
                 slot.className = 'shop-slot';
                 slot.style.width = '64px';
@@ -707,6 +708,9 @@
                         hideItemTooltip();
                     };
                     slot.appendChild(img);
+                } else {
+                    // Optionally, leave empty or add a placeholder
+                    // slot.textContent = '';
                 }
                 shopGrid.appendChild(slot);
             }
@@ -768,10 +772,11 @@
                         break;
                 }
 
-                console.log('Loading items for category:', category, itemsToLoad);
-
-                for (let i = 0; i < 25; i++) {
-                    const item = itemsToLoad[i % itemsToLoad.length];
+                // Only use each item once per restock
+                const uniqueItems = Array.isArray(itemsToLoad) ? [...itemsToLoad] : [];
+                const maxSlots = 25;
+                for (let i = 0; i < maxSlots; i++) {
+                    const item = uniqueItems[i];
                     const slot = document.createElement('div');
                     slot.className = 'shop-slot';
                     slot.style.width = '64px';
@@ -802,6 +807,9 @@
                             hideItemTooltip();
                         };
                         slot.appendChild(img);
+                    } else {
+                        // Optionally, leave empty or add a placeholder
+                        // slot.textContent = '';
                     }
                     shopGrid.appendChild(slot);
                 }
