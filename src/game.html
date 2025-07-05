@@ -1812,6 +1812,104 @@
                 });
             }, 800);
         }
+
+        // --- GAMEPAD SUPPORT ---
+(function() {
+    let lastGamepadState = {};
+    let gamepadInterval = null;
+    let gamepadConnected = false;
+
+    function buttonPressed(b) {
+        if (typeof b === 'object') return b.pressed;
+        return b === 1.0;
+    }
+
+    function handleGamepadInput() {
+        const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
+        if (!gamepads) return;
+        const gp = gamepads[0];
+        if (!gp) return;
+        // Movement: D-pad or left stick
+        let move = null;
+        if (gp.axes[0] < -0.5) move = 'a'; // left
+        else if (gp.axes[0] > 0.5) move = 'd'; // right
+        else if (gp.axes[1] < -0.5) move = 'w'; // up
+        else if (gp.axes[1] > 0.5) move = 's'; // down
+        // D-pad buttons (optional, for digital pads)
+        if (buttonPressed(gp.buttons[14])) move = 'a';
+        if (buttonPressed(gp.buttons[15])) move = 'd';
+        if (buttonPressed(gp.buttons[12])) move = 'w';
+        if (buttonPressed(gp.buttons[13])) move = 's';
+        // Only trigger on new press (debounce)
+        if (move && lastGamepadState.move !== move) {
+            const fakeEvent = { key: move };
+            if (typeof movePlayerIcon === 'function' && typeof playerPosition !== 'undefined' && typeof map !== 'undefined' && typeof rows !== 'undefined' && typeof cols !== 'undefined' && typeof tileSize !== 'undefined') {
+                movePlayerIcon(fakeEvent, playerPosition, map, rows, cols, tileSize);
+            }
+        }
+        lastGamepadState.move = move;
+        // Attack: A (0) or X (2) button
+        let attack = buttonPressed(gp.buttons[0]) || buttonPressed(gp.buttons[2]);
+        if (attack && !lastGamepadState.attack) {
+            const fakeEvent = { key: ' ' };
+            document.dispatchEvent(new KeyboardEvent('keydown', fakeEvent));
+        }
+        lastGamepadState.attack = attack;
+        // Inventory: Y (3) or Back (8)
+        let inv = buttonPressed(gp.buttons[3]) || buttonPressed(gp.buttons[8]);
+        if (inv && !lastGamepadState.inv) {
+            const btn = document.getElementById('sideInventoryBtn');
+            if (btn) btn.click();
+        }
+        lastGamepadState.inv = inv;
+        // Shop: Start (9)
+        let shop = buttonPressed(gp.buttons[9]);
+        if (shop && !lastGamepadState.shop) {
+            const btn = document.getElementById('sideShopBtn');
+            if (btn) btn.click();
+        }
+        lastGamepadState.shop = shop;
+        // Tab switching: LB (4) and RB (5)
+        let tabLeft = buttonPressed(gp.buttons[4]);
+        let tabRight = buttonPressed(gp.buttons[5]);
+        if (tabLeft && !lastGamepadState.tabLeft) {
+            // Find current tab and switch left
+            const tabs = document.querySelectorAll('.shop-tab');
+            let idx = Array.from(tabs).findIndex(t => t.dataset.category === window.currentCategory);
+            if (idx > 0) tabs[idx - 1].click();
+        }
+        if (tabRight && !lastGamepadState.tabRight) {
+            const tabs = document.querySelectorAll('.shop-tab');
+            let idx = Array.from(tabs).findIndex(t => t.dataset.category === window.currentCategory);
+            if (idx < tabs.length - 1 && idx !== -1) tabs[idx + 1].click();
+        }
+        lastGamepadState.tabLeft = tabLeft;
+        lastGamepadState.tabRight = tabRight;
+    }
+
+    window.addEventListener('gamepadconnected', function(e) {
+        console.log('Gamepad connected:', e.gamepad);
+        gamepadConnected = true;
+        if (!gamepadInterval) {
+            gamepadInterval = setInterval(handleGamepadInput, 100); // Poll every 100ms
+        }
+    });
+    window.addEventListener('gamepaddisconnected', function(e) {
+        console.log('Gamepad disconnected:', e.gamepad);
+        gamepadConnected = false;
+        if (gamepadInterval) {
+            clearInterval(gamepadInterval);
+            gamepadInterval = null;
+        }
+    });
+    // Optionally, start polling if already connected
+    if (navigator.getGamepads && navigator.getGamepads()[0]) {
+        gamepadConnected = true;
+        if (!gamepadInterval) {
+            gamepadInterval = setInterval(handleGamepadInput, 100);
+        }
+    }
+})();
     </script>
 </body>
 </html>
