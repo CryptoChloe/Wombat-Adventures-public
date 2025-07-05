@@ -1217,8 +1217,7 @@
             savePlayerHP(playerHP);
             updatePlayerHP();
             if (playerHP <= 0) {
-                alert('You were defeated by an enemy!');
-                window.location.reload();
+        showDefeatPopup();
             }
         }
 
@@ -1320,15 +1319,23 @@
                                 const enemyIcon = document.getElementById(enemy.id);
                                 if (enemyIcon) enemyIcon.remove();
                                 awardXP(50); // Award 50 XP per enemy defeated
+                                // --- Gold reward logic ---
+                                const idx = parseInt(getQueryParam('char'), 10);
+                                const chars = loadUserCharacters();
+                                const char = chars[idx];
+                                if (char) {
+                                    const goldReward = Math.floor(Math.random() * 26) + 25; // 25-50
+                                    char.gold = (char.gold || 0) + goldReward;
+                                    saveUserCharacters(chars);
+                                    showSideCharInfo(); // Update gold in side menu
+                                    showFloatingGoldMessage(goldReward);
+                                }
                                 // --- Enemy item drop logic ---
                                 // 30% chance to drop a random item from items.js
                                 if (window.items && Array.isArray(window.items) && window.items.length > 0) {
                                     if (Math.random() < 0.3) {
                                         const droppedItem = window.items[Math.floor(Math.random() * window.items.length)];
                                         // Add to current character's inventory if space
-                                        const idx = parseInt(getQueryParam('char'), 10);
-                                        const chars = loadUserCharacters();
-                                        const char = chars[idx];
                                         if (char && Array.isArray(char.inventory) && char.inventory.length < 35) {
                                             char.inventory.push(droppedItem.id);
                                             saveUserCharacters(chars);
@@ -1356,16 +1363,23 @@
                     }
                 }
             }
+            const enemyImages = [
+                "url('../assets/sprites/spider.png')",
+                "url('../assets/sprites/bug.png')"
+            ];
             const enemies = [];
             for (let i = 0; i < numEnemies && dirtTiles.length > 0; i++) {
                 const idx = Math.floor(Math.random() * dirtTiles.length);
                 const pos = dirtTiles.splice(idx, 1)[0];
+                // Randomly pick an enemy image
+                const enemyImage = enemyImages[Math.floor(Math.random() * enemyImages.length)];
                 const enemy = {
                     id: 'enemy_' + i,
                     row: pos.row,
                     col: pos.col,
                     hp: 3,
-                    alive: true
+                    alive: true,
+                    sprite: enemyImage // Store which image this enemy uses
                 };
                 enemies.push(enemy);
                 const enemyIcon = document.createElement('div');
@@ -1373,7 +1387,7 @@
                 enemyIcon.className = 'enemyIcon';
                 enemyIcon.style.width = tileSize + 'px';
                 enemyIcon.style.height = tileSize + 'px';
-                enemyIcon.style.backgroundImage = "url('../assets/sprites/spider.png')";
+                enemyIcon.style.backgroundImage = enemy.sprite;
                 enemyIcon.style.backgroundSize = 'contain';
                 enemyIcon.style.backgroundRepeat = 'no-repeat';
                 enemyIcon.style.position = 'absolute';
@@ -1610,6 +1624,139 @@
         function hideItemTooltip() {
             const tooltip = document.getElementById('itemTooltip');
             if (tooltip) tooltip.style.display = 'none';
+        }
+
+        // Floating gold message function
+        function showFloatingGoldMessage(amount) {
+            let msg = document.createElement('div');
+            msg.textContent = `+${amount} gold!`;
+            msg.style.position = 'fixed';
+            msg.style.top = '120px';
+            msg.style.right = '60px';
+            msg.style.background = 'rgba(255, 215, 0, 0.95)';
+            msg.style.color = '#222';
+            msg.style.fontWeight = 'bold';
+            msg.style.fontSize = '1.2rem';
+            msg.style.padding = '8px 18px';
+            msg.style.borderRadius = '8px';
+            msg.style.zIndex = 10000;
+            msg.style.boxShadow = '0 2px 8px rgba(0,0,0,0.18)';
+            msg.style.transition = 'opacity 0.7s, transform 0.7s';
+            document.body.appendChild(msg);
+            setTimeout(() => {
+                msg.style.opacity = '0';
+                msg.style.transform = 'translateY(-30px)';
+            }, 900);
+            setTimeout(() => {
+                if (msg.parentNode) msg.parentNode.removeChild(msg);
+            }, 1700);
+        }
+
+        // Defeat popup logic
+        function showDefeatPopup() {
+            // Prevent multiple popups
+            if (document.getElementById('defeatPopup')) return;
+            const popup = document.createElement('div');
+            popup.id = 'defeatPopup';
+            popup.style.position = 'fixed';
+            popup.style.top = '0';
+            popup.style.left = '0';
+            popup.style.width = '100vw';
+            popup.style.height = '100vh';
+            popup.style.background = 'rgba(0,0,0,0.65)';
+            popup.style.display = 'flex';
+            popup.style.flexDirection = 'column';
+            popup.style.alignItems = 'center';
+            popup.style.justifyContent = 'center';
+            popup.style.zIndex = 10001;
+
+            const box = document.createElement('div');
+            box.style.background = '#fff';
+            box.style.padding = '2.5rem 2.5rem 2rem 2.5rem';
+            box.style.borderRadius = '18px';
+            box.style.boxShadow = '0 6px 32px rgba(0,0,0,0.25)';
+            box.style.textAlign = 'center';
+            box.style.maxWidth = '90vw';
+            box.style.minWidth = '320px';
+
+            const msg = document.createElement('div');
+            msg.textContent = 'You were defeated by an enemy!';
+            msg.style.fontSize = '1.35rem';
+            msg.style.fontWeight = 'bold';
+            msg.style.marginBottom = '2.2rem';
+            box.appendChild(msg);
+
+            const okBtn = document.createElement('button');
+            okBtn.textContent = 'OK (Restart Map)';
+            okBtn.style.margin = '0 1.2rem 0 0';
+            okBtn.style.padding = '0.7rem 2.2rem';
+            okBtn.style.fontSize = '1.1rem';
+            okBtn.style.borderRadius = '8px';
+            okBtn.style.border = 'none';
+            okBtn.style.background = '#7ab7df';
+            okBtn.style.color = '#fff';
+            okBtn.style.cursor = 'pointer';
+            okBtn.onclick = function() {
+                popup.remove();
+                // Reset HP and reload map only (not full page reload)
+                resetPlayerHP();
+                // Re-initialize map and player/enemy state
+                if (typeof restartGameMap === 'function') {
+                    restartGameMap();
+                } else {
+                    window.location.reload(); // fallback
+                }
+            };
+            box.appendChild(okBtn);
+
+            const backBtn = document.createElement('button');
+            backBtn.textContent = 'Back to Character Selection';
+            backBtn.style.padding = '0.7rem 2.2rem';
+            backBtn.style.fontSize = '1.1rem';
+            backBtn.style.borderRadius = '8px';
+            backBtn.style.border = 'none';
+            backBtn.style.background = '#b22222';
+            backBtn.style.color = '#fff';
+            backBtn.style.cursor = 'pointer';
+            backBtn.onclick = function() {
+                window.location.href = 'characterselection.html';
+            };
+            box.appendChild(backBtn);
+
+            popup.appendChild(box);
+            document.body.appendChild(popup);
+        }
+
+        // Helper to restart map/game area after defeat (no full reload)
+        function restartGameMap() {
+            // Remove all enemy icons
+            document.querySelectorAll('.enemyIcon').forEach(e => e.remove());
+            // Remove player icon
+            const playerIcon = document.getElementById('playerIcon');
+            if (playerIcon) playerIcon.remove();
+            // Remove map container
+            const gameArea = document.querySelector('.gamearea');
+            if (gameArea) gameArea.innerHTML = '';
+            // Reset enemies array and counters
+            enemies = [];
+            enemiesDefeated = 0;
+            enemiesSpawned = 10;
+            // Re-generate map and player
+            map = generateCaveMap(50, 80, 64, gameArea);
+            playerPosition = placePlayerIcon(map, 50, 80, 64);
+            // Reset player HP
+            playerHP = loadPlayerHP();
+            updatePlayerHP();
+            // Place new enemies
+            enemies = placeEnemies(map, 50, 80, 64, enemiesSpawned, playerPosition);
+            updateEnemyCounter();
+            // Re-attach enemy movement interval
+            if (window.enemyMoveInterval) clearInterval(window.enemyMoveInterval);
+            window.enemyMoveInterval = setInterval(() => {
+                moveEnemies(enemies, map, playerPosition, 50, 80, 64, () => {
+                    damagePlayer(1);
+                });
+            }, 800);
         }
     </script>
 </body>
