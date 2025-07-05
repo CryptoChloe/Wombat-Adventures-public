@@ -212,6 +212,18 @@
             localStorage.setItem(`maxCharacterSlots_${username}`, value);
         }
 
+        // Get char index from URL
+        function getCharIndexFromUrl() {
+            const params = new URLSearchParams(window.location.search);
+            return parseInt(params.get('char'), 10) || 0;
+        }
+
+        // Main logic
+        const username = getCurrentUsername();
+        const charIndex = getCharIndexFromUrl();
+        const savedChars = JSON.parse(localStorage.getItem(getUserCharacterKey(username)) || '[]');
+        const playedChar = savedChars[charIndex];
+
         // Load maxCharacterSlots for the logged-in player
         function getMaxCharacterSlotsForPlayer() {
             const username = getCurrentUsername();
@@ -492,6 +504,15 @@
                         img.onclick = function() {
                             if (onEquip) onEquip(itemId, i);
                         };
+                        img.onmouseenter = function(e) {
+                            createItemTooltip(def, e.clientX, e.clientY);
+                        };
+                        img.onmousemove = function(e) {
+                            createItemTooltip(def, e.clientX, e.clientY);
+                        };
+                        img.onmouseleave = function() {
+                            hideItemTooltip();
+                        };
                         slot.appendChild(img);
                     } else {
                         slot.textContent = itemId;
@@ -676,6 +697,15 @@
                     img.style.width = '64px';
                     img.style.height = '64px';
                     img.style.objectFit = 'contain';
+                    img.onmouseenter = function(e) {
+                        createItemTooltip(item, e.clientX, e.clientY);
+                    };
+                    img.onmousemove = function(e) {
+                        createItemTooltip(item, e.clientX, e.clientY);
+                    };
+                    img.onmouseleave = function() {
+                        hideItemTooltip();
+                    };
                     slot.appendChild(img);
                 }
                 shopGrid.appendChild(slot);
@@ -762,6 +792,15 @@
                         img.style.width = '64px';
                         img.style.height = '64px';
                         img.style.objectFit = 'contain';
+                        img.onmouseenter = function(e) {
+                            createItemTooltip(item, e.clientX, e.clientY);
+                        };
+                        img.onmousemove = function(e) {
+                            createItemTooltip(item, e.clientX, e.clientY);
+                        };
+                        img.onmouseleave = function() {
+                            hideItemTooltip();
+                        };
                         slot.appendChild(img);
                     }
                     shopGrid.appendChild(slot);
@@ -797,6 +836,15 @@
                             img.style.width = '64px';
                             img.style.height = '64px';
                             img.style.objectFit = 'contain';
+                            img.onmouseenter = function(e) {
+                                createItemTooltip(def, e.clientX, e.clientY);
+                            };
+                            img.onmousemove = function(e) {
+                                createItemTooltip(def, e.clientX, e.clientY);
+                            };
+                            img.onmouseleave = function() {
+                                hideItemTooltip();
+                            };
                             slot.appendChild(img);
                         } else {
                             slot.textContent = itemId;
@@ -1125,6 +1173,97 @@
             }
         }
 
+        // --- Player HP Management (robust, persistent, per-user, per-character) ---
+        let playerHP = null; // Current HP in memory
+
+        function getPlayerHPStorageKey() {
+            const username = getCurrentUsername();
+            const idx = typeof getCharIndexFromUrl === 'function' ? getCharIndexFromUrl() : 0;
+            return username ? `playerHP_${username}_${idx}` : `playerHP_${idx}`;
+        }
+
+        function loadPlayerHP() {
+            const chars = typeof loadUserCharacters === 'function' ? loadUserCharacters() : [];
+            const idx = typeof getCharIndexFromUrl === 'function' ? getCharIndexFromUrl() : 0;
+            let maxHP = 5;
+            if (chars && chars[idx] && typeof chars[idx].health !== 'undefined') {
+                maxHP = chars[idx].health;
+            }
+            const key = getPlayerHPStorageKey();
+            let stored = localStorage.getItem(key);
+            let hp = parseInt(stored, 10);
+            if (isNaN(hp) || hp > maxHP || hp <= 0) {
+                hp = maxHP;
+                localStorage.setItem(key, hp);
+            }
+            return hp;
+        }
+
+        function savePlayerHP(hp) {
+            const key = getPlayerHPStorageKey();
+            localStorage.setItem(key, hp);
+        }
+
+        function damagePlayer(amount) {
+            playerHP = Math.max(0, playerHP - amount);
+            savePlayerHP(playerHP);
+            updatePlayerHP();
+            if (playerHP <= 0) {
+                alert('You were defeated by an enemy!');
+                window.location.reload();
+            }
+        }
+
+        function healPlayer(amount) {
+            const chars = typeof loadUserCharacters === 'function' ? loadUserCharacters() : [];
+            const idx = typeof getCharIndexFromUrl === 'function' ? getCharIndexFromUrl() : 0;
+            let maxHP = 5;
+            if (chars && chars[idx] && typeof chars[idx].health !== 'undefined') {
+                maxHP = chars[idx].health;
+            }
+            playerHP = Math.min(maxHP, playerHP + amount);
+            savePlayerHP(playerHP);
+            updatePlayerHP();
+        }
+
+        function resetPlayerHP() {
+            const chars = typeof loadUserCharacters === 'function' ? loadUserCharacters() : [];
+            const idx = typeof getCharIndexFromUrl === 'function' ? getCharIndexFromUrl() : 0;
+            let maxHP = 5;
+            if (chars && chars[idx] && typeof chars[idx].health !== 'undefined') {
+                maxHP = chars[idx].health;
+            }
+            playerHP = maxHP;
+            savePlayerHP(playerHP);
+            updatePlayerHP();
+        }
+
+        function updatePlayerHP() {
+            // Get the current character's max health from localStorage
+            const idx = typeof getCharIndexFromUrl === 'function' ? getCharIndexFromUrl() : 0;
+            const chars = typeof loadUserCharacters === 'function' ? loadUserCharacters() : [];
+            let maxHP = 5;
+            if (chars && chars[idx] && typeof chars[idx].health !== 'undefined') {
+                maxHP = chars[idx].health;
+            }
+            let hpBar = document.getElementById('playerHPBar');
+            if (!hpBar) {
+                hpBar = document.createElement('div');
+                hpBar.id = 'playerHPBar';
+                hpBar.style.position = 'fixed';
+                hpBar.style.top = '70px';
+                hpBar.style.right = '40px';
+                hpBar.style.background = '#b22222';
+                hpBar.style.color = '#fff';
+                hpBar.style.padding = '8px 18px';
+                hpBar.style.borderRadius = '8px';
+                hpBar.style.fontSize = '1.2rem';
+                hpBar.style.zIndex = 9999;
+                document.body.appendChild(hpBar);
+            }
+            hpBar.textContent = 'Player HP: ' + playerHP + ' / ' + maxHP;
+        }
+
         window.onload = function() {
             rows = 50;
             cols = 80;
@@ -1134,23 +1273,20 @@
             // Initialize map and player position
             map = generateCaveMap(rows, cols, tileSize, gameArea);
             playerPosition = placePlayerIcon(map, rows, cols, tileSize);
+            // --- Initialize player HP ---
+            playerHP = loadPlayerHP();
             updatePlayerHP();
 
             // Place enemies
-            const numEnemies = 5;
+            const numEnemies = 10;
             enemiesSpawned = numEnemies;
+            enemies = placeEnemies(map, rows, cols, tileSize, numEnemies, playerPosition);
             updateEnemyCounter();
-            const enemies = placeEnemies(map, rows, cols, tileSize, numEnemies, playerPosition);
 
             // Enemy movement interval
             setInterval(() => {
                 moveEnemies(enemies, map, playerPosition, rows, cols, tileSize, () => {
-                    playerHP--;
-                    updatePlayerHP();
-                    if (playerHP <= 0) {
-                        alert('You were defeated by an enemy!');
-                        window.location.reload();
-                    }
+                    damagePlayer(1);
                 });
             }, 800);
 
@@ -1176,8 +1312,23 @@
                                 const enemyIcon = document.getElementById(enemy.id);
                                 if (enemyIcon) enemyIcon.remove();
                                 awardXP(50); // Award 50 XP per enemy defeated
-                                enemiesDefeated++;
-                                updateEnemyCounter();
+                                // --- Enemy item drop logic ---
+                                // 30% chance to drop a random item from items.js
+                                if (window.items && Array.isArray(window.items) && window.items.length > 0) {
+                                    if (Math.random() < 0.3) {
+                                        const droppedItem = window.items[Math.floor(Math.random() * window.items.length)];
+                                        // Add to current character's inventory if space
+                                        const idx = parseInt(getQueryParam('char'), 10);
+                                        const chars = loadUserCharacters();
+                                        const char = chars[idx];
+                                        if (char && Array.isArray(char.inventory) && char.inventory.length < 35) {
+                                            char.inventory.push(droppedItem.id);
+                                            saveUserCharacters(chars);
+                                            showPopupNotification('Enemy dropped: <b>' + droppedItem.name + '</b>!<br>Check your inventory.');
+                                        }
+                                    }
+                                }
+                                updateEnemyCounter(); // Always update after enemy defeated
                             }
                         }
                     });
@@ -1271,31 +1422,19 @@
             });
         }
 
-        // Add player and enemy health display
-        let playerHP = 5;
-        function updatePlayerHP() {
-            let hpBar = document.getElementById('playerHPBar');
-            if (!hpBar) {
-                hpBar = document.createElement('div');
-                hpBar.id = 'playerHPBar';
-                hpBar.style.position = 'fixed';
-                hpBar.style.top = '70px';
-                hpBar.style.right = '40px';
-                hpBar.style.background = '#b22222';
-                hpBar.style.color = '#fff';
-                hpBar.style.padding = '8px 18px';
-                hpBar.style.borderRadius = '8px';
-                hpBar.style.fontSize = '1.2rem';
-                hpBar.style.zIndex = 9999;
-                document.body.appendChild(hpBar);
-            }
-            hpBar.textContent = 'Player HP: ' + playerHP;
-        }
-
         // Enemy counter display
         let enemiesDefeated = 0;
         let enemiesSpawned = 0;
+        let enemies = [];
+
+        function recalculateEnemiesDefeated() {
+            if (Array.isArray(enemies)) {
+                enemiesDefeated = enemies.filter(e => !e.alive).length;
+            }
+        }
+
         function updateEnemyCounter() {
+            recalculateEnemiesDefeated();
             let counter = document.getElementById('enemyCounter');
             if (!counter) {
                 counter = document.createElement('div');
@@ -1338,8 +1477,9 @@
             saveUserCharacters(chars);
             showSideCharInfo(); // Update side menu
             // Optionally, show a message
+           
             if (leveledUp) {
-                let msg = `Level up! You are now level ${char.level}. +12 stat points`;
+                let msg = `Level up! You are now level ${char.level}. +2 stat points`;
                 if (skillpointsGained > 0) msg += `, +${skillpointsGained} skill point${skillpointsGained > 1 ? 's' : ''}`;
                 alert(msg);
             }
@@ -1429,41 +1569,39 @@
             });
         });
 
-        function showPopupNotification(message) {
-            let popup = document.getElementById('popupNotification');
-            if (!popup) {
-                popup = document.createElement('div');
-                popup.id = 'popupNotification';
-                popup.style.position = 'fixed';
-                popup.style.top = '50%';
-                popup.style.left = '50%';
-                popup.style.transform = 'translate(-50%, -50%)';
-                popup.style.background = 'rgba(34,34,34,0.97)';
-                popup.style.color = '#fff';
-                popup.style.padding = '2rem 2.5rem';
-                popup.style.borderRadius = '18px';
-                popup.style.boxShadow = '0 8px 32px rgba(0,0,0,0.22)';
-                popup.style.zIndex = 4000;
-                popup.style.fontSize = '1.3rem';
-                popup.style.textAlign = 'center';
-                popup.style.display = 'none';
-                document.body.appendChild(popup);
+        function createItemTooltip(item, x, y) {
+            let tooltip = document.getElementById('itemTooltip');
+            if (!tooltip) {
+                tooltip = document.createElement('div');
+                tooltip.id = 'itemTooltip';
+                tooltip.style.position = 'fixed';
+                tooltip.style.pointerEvents = 'none';
+                tooltip.style.background = 'rgba(34,34,34,0.97)';
+                tooltip.style.color = '#fff';
+                tooltip.style.padding = '1rem 1.5rem';
+                tooltip.style.borderRadius = '12px';
+                tooltip.style.boxShadow = '0 4px 16px rgba(0,0,0,0.18)';
+                tooltip.style.zIndex = 5000;
+                tooltip.style.fontSize = '1.08rem';
+                tooltip.style.minWidth = '180px';
+                tooltip.style.maxWidth = '320px';
+                tooltip.style.display = 'none';
+                document.body.appendChild(tooltip);
             }
-            popup.innerHTML = message + '<br><br><button id="closePopupNotification" style="margin-top:1.2rem;padding:0.5rem 1.5rem;font-size:1rem;border-radius:8px;border:none;background:#ffd700;color:#222;cursor:pointer;">OK</button>';
-            popup.style.display = 'block';
-            const closeBtn = document.getElementById('closePopupNotification');
-            if (closeBtn) {
-                closeBtn.onclick = function() {
-                    popup.style.display = 'none';
-                };
-            }
-            // Also close on Escape
-            document.addEventListener('keydown', function escListener(e) {
-                if (popup.style.display !== 'none' && (e.key === 'Escape' || e.key === 'Esc')) {
-                    popup.style.display = 'none';
-                    document.removeEventListener('keydown', escListener);
+            let props = '';
+            if (item.properties) {
+                for (const key in item.properties) {
+                    props += `<div style='color:#ffd700;'>${key}:</div> <div style='margin-left:8px;display:inline-block;'>${item.properties[key]}</div><br>`;
                 }
-            });
+            }
+            tooltip.innerHTML = `<div style='font-weight:bold;font-size:1.15rem;margin-bottom:0.5rem;'>${item.name}</div>${props}`;
+            tooltip.style.left = (x + 18) + 'px';
+            tooltip.style.top = (y + 18) + 'px';
+            tooltip.style.display = 'block';
+        }
+        function hideItemTooltip() {
+            const tooltip = document.getElementById('itemTooltip');
+            if (tooltip) tooltip.style.display = 'none';
         }
     </script>
 </body>
