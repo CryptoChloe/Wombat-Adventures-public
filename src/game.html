@@ -1637,6 +1637,32 @@
             });
         });
 
+        // --- Popup Notification Helper ---
+function showPopupNotification(message, duration = 3200) {
+    // Prevent multiple popups
+    let popup = document.getElementById('popupNotification');
+    if (popup) popup.remove();
+    popup = document.createElement('div');
+    popup.id = 'popupNotification';
+    popup.style.position = 'fixed';
+    popup.style.top = '50%';
+    popup.style.left = '50%';
+    popup.style.transform = 'translate(-50%, -50%)';
+    popup.style.background = 'rgba(34,34,34,0.97)';
+    popup.style.color = '#fff';
+    popup.style.padding = '2rem 2.5rem';
+    popup.style.borderRadius = '16px';
+    popup.style.boxShadow = '0 6px 32px rgba(0,0,0,0.25)';
+    popup.style.fontSize = '1.18rem';
+    popup.style.zIndex = 10002;
+    popup.style.textAlign = 'center';
+    popup.innerHTML = message;
+    document.body.appendChild(popup);
+    setTimeout(() => {
+        if (popup.parentNode) popup.parentNode.removeChild(popup);
+    }, duration);
+}
+
         function createItemTooltip(item, x, y, context = "shop") {
             let tooltip = document.getElementById('itemTooltip');
             if (!tooltip) {
