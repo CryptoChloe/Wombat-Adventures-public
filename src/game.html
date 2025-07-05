@@ -505,10 +505,10 @@
                             if (onEquip) onEquip(itemId, i);
                         };
                         img.onmouseenter = function(e) {
-                            createItemTooltip(def, e.clientX, e.clientY);
+                            createItemTooltip(def, e.clientX, e.clientY, 'inventory');
                         };
                         img.onmousemove = function(e) {
-                            createItemTooltip(def, e.clientX, e.clientY);
+                            createItemTooltip(def, e.clientX, e.clientY, 'inventory');
                         };
                         img.onmouseleave = function() {
                             hideItemTooltip();
@@ -699,18 +699,15 @@
                     img.style.height = '64px';
                     img.style.objectFit = 'contain';
                     img.onmouseenter = function(e) {
-                        createItemTooltip(item, e.clientX, e.clientY);
+                        createItemTooltip(item, e.clientX, e.clientY, 'shop');
                     };
                     img.onmousemove = function(e) {
-                        createItemTooltip(item, e.clientX, e.clientY);
+                        createItemTooltip(item, e.clientX, e.clientY, 'shop');
                     };
                     img.onmouseleave = function() {
                         hideItemTooltip();
                     };
                     slot.appendChild(img);
-                } else {
-                    // Optionally, leave empty or add a placeholder
-                    // slot.textContent = '';
                 }
                 shopGrid.appendChild(slot);
             }
@@ -722,11 +719,7 @@
             const shopInventoryGrid = document.getElementById('shopInventoryGrid');
             const tabs = document.querySelectorAll('.shop-tab');
             let currentCategory = 'armor';
-
-            // Expose currentCategory globally
             window.currentCategory = currentCategory;
-
-            // Arrays to store items for each category
             let armorItems = [];
             let weaponItems = [];
             let jewelryItems = [];
@@ -734,45 +727,39 @@
 
             function restockShopItems() {
                 const itemDefs = window.items || [];
-                console.log('Items available in window.items:', itemDefs);
-
-                if (!itemDefs.length) {
-                    console.error('No items found in window.items. Ensure items.js is loaded and contains valid data.');
-                    return;
-                }
-
                 armorItems = itemDefs.filter(item => item.type === 'body');
                 weaponItems = itemDefs.filter(item => item.type === 'weapon');
                 jewelryItems = itemDefs.filter(item => item.type === 'amulet');
                 consumableItems = itemDefs.filter(item => item.type === 'consumable');
+            }
 
-                console.log('Armor items:', armorItems);
-                console.log('Weapon items:', weaponItems);
-                console.log('Jewelry items:', jewelryItems);
-                console.log('Consumable items:', consumableItems);
+            // --- BUY/SELL LOGIC ---
+            function updateGoldDisplay() {
+                // Update gold in side menu
+                showSideCharInfo();
+            }
+
+            function getCurrentChar() {
+                const idx = parseInt(getQueryParam('char'), 10);
+                const chars = loadUserCharacters();
+                return { char: chars[idx], chars, idx };
+            }
+
+            function saveChar(char, chars, idx) {
+                chars[idx] = char;
+                saveUserCharacters(chars);
             }
 
             function loadShopGrid(category) {
                 const shopGrid = document.getElementById('shopGrid');
                 shopGrid.innerHTML = '';
                 let itemsToLoad = [];
-
                 switch (category) {
-                    case 'armor':
-                        itemsToLoad = armorItems;
-                        break;
-                    case 'weapons':
-                        itemsToLoad = weaponItems;
-                        break;
-                    case 'jewelry':
-                        itemsToLoad = jewelryItems;
-                        break;
-                    case 'consumables':
-                        itemsToLoad = consumableItems;
-                        break;
+                    case 'armor': itemsToLoad = armorItems; break;
+                    case 'weapons': itemsToLoad = weaponItems; break;
+                    case 'jewelry': itemsToLoad = jewelryItems; break;
+                    case 'consumables': itemsToLoad = consumableItems; break;
                 }
-
-                // Only use each item once per restock
                 const uniqueItems = Array.isArray(itemsToLoad) ? [...itemsToLoad] : [];
                 const maxSlots = 25;
                 for (let i = 0; i < maxSlots; i++) {
@@ -797,26 +784,50 @@
                         img.style.width = '64px';
                         img.style.height = '64px';
                         img.style.objectFit = 'contain';
+                        img.style.cursor = 'pointer';
                         img.onmouseenter = function(e) {
-                            createItemTooltip(item, e.clientX, e.clientY);
+                            createItemTooltip(item, e.clientX, e.clientY, 'shop');
                         };
                         img.onmousemove = function(e) {
-                            createItemTooltip(item, e.clientX, e.clientY);
+                            createItemTooltip(item, e.clientX, e.clientY, 'shop');
                         };
                         img.onmouseleave = function() {
                             hideItemTooltip();
                         };
+                        img.onclick = function() {
+                            // BUY LOGIC
+                            const { char, chars, idx } = getCurrentChar();
+                            if (!char) return;
+                            if (!char.inventory) char.inventory = [];
+                            if (char.inventory.length >= 35) return; // Inventory full
+                            if (char.gold < item.price) return; // Not enough gold
+                            char.gold -= item.price;
+                            char.inventory.push(item.id);
+                            // Remove from shop grid (remove from category array)
+                            let arr;
+                            switch (category) {
+                                case 'armor': arr = armorItems; break;
+                                case 'weapons': arr = weaponItems; break;
+                                case 'jewelry': arr = jewelryItems; break;
+                                case 'consumables': arr = consumableItems; break;
+                            }
+                            const idxInArr = arr.findIndex(it => it.id === item.id);
+                            if (idxInArr !== -1) arr.splice(idxInArr, 1);
+                            saveChar(char, chars, idx);
+                            loadShopGrid(category);
+                            copyInventoryToShopGrid();
+                            updateGoldDisplay();
+                            hideItemTooltip(); // Hide tooltip after buying
+                        };
                         slot.appendChild(img);
-                    } else {
-                        // Optionally, leave empty or add a placeholder
-                        // slot.textContent = '';
                     }
                     shopGrid.appendChild(slot);
                 }
             }
+            window.loadShopGrid = loadShopGrid;
 
             function copyInventoryToShopGrid() {
-                const char = loadUserCharacters()[parseInt(getQueryParam('char'), 10)];
+                const { char, chars, idx } = getCurrentChar();
                 const inventory = char ? char.inventory : [];
                 shopInventoryGrid.innerHTML = '';
                 for (let i = 0; i < 35; i++) {
@@ -844,14 +855,48 @@
                             img.style.width = '64px';
                             img.style.height = '64px';
                             img.style.objectFit = 'contain';
+                            img.style.cursor = 'pointer';
                             img.onmouseenter = function(e) {
-                                createItemTooltip(def, e.clientX, e.clientY);
+                                createItemTooltip(def, e.clientX, e.clientY, 'inventory');
                             };
                             img.onmousemove = function(e) {
-                                createItemTooltip(def, e.clientX, e.clientY);
+                                createItemTooltip(def, e.clientX, e.clientY, 'inventory');
                             };
                             img.onmouseleave = function() {
                                 hideItemTooltip();
+                            };
+                            img.onclick = function() {
+                                // SELL LOGIC
+                                const { char, chars, idx } = getCurrentChar();
+                                if (!char) return;
+                                if (!char.inventory) char.inventory = [];
+                                // Find shop array for current tab
+                                let arr;
+                                switch (currentCategory) {
+                                    case 'armor': arr = armorItems; break;
+                                    case 'weapons': arr = weaponItems; break;
+                                    case 'jewelry': arr = jewelryItems; break;
+                                    case 'consumables': arr = consumableItems; break;
+                                }
+                                if (arr.length >= 25) return; // Shop full
+                                // Only allow selling if item matches tab type
+                                if ((currentCategory === 'armor' && def.type !== 'body') ||
+                                    (currentCategory === 'weapons' && def.type !== 'weapon') ||
+                                    (currentCategory === 'jewelry' && def.type !== 'amulet') ||
+                                    (currentCategory === 'consumables' && def.type !== 'consumable')) {
+                                    return;
+                                }
+                                // Remove from inventory
+                                char.inventory.splice(i, 1);
+                                // Add to shop
+                                arr.push(def);
+                                // Add gold (half price, rounded down)
+                                char.gold += Math.floor(def.price / 2);
+                                saveChar(char, chars, idx);
+                                loadShopGrid(currentCategory);
+                                copyInventoryToShopGrid();
+                                updateGoldDisplay();
+                                hideItemTooltip(); // Hide tooltip after selling
                             };
                             slot.appendChild(img);
                         } else {
@@ -866,14 +911,14 @@
                 tab.addEventListener('click', function() {
                     currentCategory = this.dataset.category;
                     loadShopGrid(currentCategory);
+                    copyInventoryToShopGrid();
                 });
             });
 
             setInterval(() => {
                 restockShopItems();
-            }, 3600000); // Restock every hour
+            }, 3600000);
 
-            // Initial restock
             restockShopItems();
             loadShopGrid(currentCategory);
             copyInventoryToShopGrid();
@@ -1437,6 +1482,7 @@
                     enemy.col += move.col;
                     const enemyIcon = document.getElementById(enemy.id);
                     if (enemyIcon) {
+                       
                         enemyIcon.style.top = (enemy.row * tileSize) + 'px';
                         enemyIcon.style.left = (enemy.col * tileSize) + 'px';
                     }
@@ -1591,7 +1637,7 @@
             });
         });
 
-        function createItemTooltip(item, x, y) {
+        function createItemTooltip(item, x, y, context = "shop") {
             let tooltip = document.getElementById('itemTooltip');
             if (!tooltip) {
                 tooltip = document.createElement('div');
@@ -1616,7 +1662,15 @@
                     props += `<div style='color:#ffd700;'>${key}:</div> <div style='margin-left:8px;display:inline-block;'>${item.properties[key]}</div><br>`;
                 }
             }
-            tooltip.innerHTML = `<div style='font-weight:bold;font-size:1.15rem;margin-bottom:0.5rem;'>${item.name}</div>${props}`;
+            let priceHtml = '';
+            if (typeof item.price !== 'undefined') {
+                if (context === 'shop') {
+                    priceHtml = `<div style='color:#7adf7a;font-weight:bold;margin-top:8px;'>Buy Price: <span style='color:#ffd700;'>${item.price} gold</span></div>`;
+                } else if (context === 'inventory') {
+                    priceHtml = `<div style='color:#b7a97a;font-weight:bold;margin-top:8px;'>Sell Price: <span style='color:#ffd700;'>${Math.floor(item.price/2)} gold</span></div>`;
+                }
+            }
+            tooltip.innerHTML = `<div style='font-weight:bold;font-size:1.15rem;margin-bottom:0.5rem;'>${item.name}</div>${props}${priceHtml}`;
             tooltip.style.left = (x + 18) + 'px';
             tooltip.style.top = (y + 18) + 'px';
             tooltip.style.display = 'block';

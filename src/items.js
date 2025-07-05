@@ -10,7 +10,8 @@ const items = [
     rarity: "common",
     properties: { attack: 5 },
     icon: "../assets/sprites/sword.png",
-    description: "A basic iron sword."
+    description: "A basic iron sword.",
+    price: 50
   },
   {
     id: "sword_002",
@@ -19,7 +20,8 @@ const items = [
     rarity: "common",
     properties: { attack: 7 },
     icon: "../assets/sprites/sword2.png",
-    description: "A basic mana sword."
+    description: "A basic mana sword.",
+    price: 80
   },
   {
     id: "armor_001",
@@ -28,7 +30,8 @@ const items = [
     rarity: "common",
     properties: { defense: 3 },
     icon: "../assets/sprites/armor.png",
-    description: "Simple leather armor."
+    description: "Simple leather armor.",
+    price: 40
   },{
     id: "armor_002",
     name: "Iron Armor",
@@ -36,7 +39,8 @@ const items = [
     rarity: "common",
     properties: { defense: 8 },
     icon: "../assets/sprites/armor2.png",
-    description: "Simple Iron armor."
+    description: "Simple Iron armor.",
+    price: 90
   },
   {
     id: "amulet_001",
@@ -45,7 +49,8 @@ const items = [
     rarity: "rare",
     properties: { luck: 2 },
     icon: "../assets/sprites/amulet.png",
-    description: "Increases your luck."
+    description: "Increases your luck.",
+    price: 120
   },{
     id: "amulet_002",
     name: "Amulet of Restoration",
@@ -53,7 +58,8 @@ const items = [
     rarity: "rare",
     properties: { health: 20 },
     icon: "../assets/sprites/amulet2.png",
-    description: "Increases your Health."
+    description: "Increases your Health.",
+    price: 150
   },
   {
     id: "potion_hp_small",
@@ -62,7 +68,8 @@ const items = [
     rarity: "common",
     properties: { heal: 50 },
     icon: "../assets/sprites/potion2.png",
-    description: "Restores 50 HP."
+    description: "Restores 50 HP.",
+    price: 20
   },{
     id: "potion_hp_mana",
     name: "Small Mana Potion",
@@ -70,7 +77,8 @@ const items = [
     rarity: "common",
     properties: { Mana: 50 },
     icon: "../assets/sprites/potion.png",
-    description: "Restores 50 Mana."
+    description: "Restores 50 Mana.",
+    price: 20
   },
   // Add more items as needed
 ];
